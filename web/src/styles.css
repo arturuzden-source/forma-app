@@ -1,0 +1,59 @@
+/* Токены дизайн-системы «Форма» (тёмная тема). */
+:root {
+  --bg: #0d0e10;
+  --surface: #17191c;
+  --surface-raised: #22252a;
+  --line: #2c3036;
+  --line-strong: #646a74;
+  --ink: #f3f4f6;
+  --ink-muted: #a5abb4;
+  --ink-faint: #878d96;
+  --accent: #c8f135;
+  --on-accent: #0d0e10;
+  --accent-soft: #252e0e;
+  --signal: #ff8a3d;
+  --signal-soft: #33200f;
+  --danger: #ff6b5e;
+  --info: #7fb2ff;
+  --font-display: 'Unbounded', 'Manrope', system-ui, sans-serif;
+  --font-sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-sans); font-size: 15px; line-height: 1.4; -webkit-font-smoothing: antialiased; }
+body { min-height: 100vh; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+button { font: inherit; }
+
+.screen { max-width: 520px; margin: 0 auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.title { font-family: var(--font-display); font-size: 22px; line-height: 28px; font-weight: 700; margin: 4px 0 0; letter-spacing: -0.01em; }
+.label { margin: 0; font-size: 11px; line-height: 14px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); }
+.muted { margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.faint { color: var(--ink-faint); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; gap: 8px; }
+.card.hl { background: var(--accent-soft); border-color: var(--accent); }
+.card.warn { background: var(--signal-soft); border-color: #5a3415; }
+.card.warn .head { color: var(--signal); font-weight: 800; margin: 0; }
+
+.row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.row span:first-child { color: var(--ink-muted); }
+.row span:last-child { font-weight: 700; text-align: right; }
+.ok { color: var(--accent); }
+.bad { color: var(--danger); }
+
+.btn { min-height: 52px; border-radius: var(--radius-md); border: 0; background: var(--accent); color: var(--on-accent); font-weight: 800; font-size: 15px; padding: 0 16px; cursor: pointer; width: 100%; }
+.btn:disabled { background: var(--surface-raised); color: var(--ink-faint); cursor: not-allowed; }
+.btn2 { min-height: 44px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--ink); font-weight: 700; font-size: 14px; padding: 0 14px; cursor: pointer; }
+
+.input { min-height: 48px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--ink); padding: 0 14px; font: inherit; width: 100%; }
+.input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.note { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; display: flex; justify-content: space-between; gap: 12px; }
+.note:last-child { border-bottom: 0; }
