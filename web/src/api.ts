@@ -8,9 +8,9 @@ export class ApiError extends Error {
 
 const TIMEOUT_MS = 10_000;
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function api<T>(path: string, init: RequestInit = {}, timeoutMs = TIMEOUT_MS): Promise<T> {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   let res: Response;
   try {
     res = await fetch(path, {

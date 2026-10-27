@@ -35,6 +35,9 @@ const schema = z.object({
   AI_EVAL_MODELS: z.string().default('gpt-6-luna,gpt-6.1-terra,gpt-6.1-sol'),
   AI_EVAL_BUDGET_USD: z.coerce.number().nonnegative().default(0.5),
 
+  /** Разрешить демонстрационные карточки (ещё не проверенные специалистом) в плане пилота. */
+  PLAN_ALLOW_DEMO: z.string().optional().transform((v) => v === undefined || v === '1' || v === 'true'),
+
   BACKUP_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   /** Время ежедневной резервной копии, ЧЧ:ММ по UTC. */
   BACKUP_TIME_UTC: z.string().regex(/^\d{2}:\d{2}$/).default('01:10')

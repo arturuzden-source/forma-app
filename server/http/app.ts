@@ -10,6 +10,7 @@ import { verifyInitData } from '../auth/telegram.js';
 import type { AiService } from '../ai/service.js';
 import { createAiService } from '../ai/service.js';
 import { registerStage1 } from './stage1.js';
+import { registerStage2 } from './stage2.js';
 
 export type Ctx = { cfg: Config; db: DB; version: string; webDir: string | null; startedAt: Date; ai?: AiService };
 
@@ -74,7 +75,9 @@ export function buildApp(ctx: Ctx, opts: { logger?: boolean } = {}): FastifyInst
       return { saved: true, ...result };
     });
 
-    registerStage1(api, { ...ctx, ai: ctx.ai ?? createAiService(ctx.cfg, ctx.db) });
+    const ai = ctx.ai ?? createAiService(ctx.cfg, ctx.db);
+    registerStage1(api, { ...ctx, ai });
+    registerStage2(api, { ...ctx, ai });
   });
 
   if (ctx.webDir && fs.existsSync(ctx.webDir)) {

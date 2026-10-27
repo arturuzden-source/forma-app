@@ -4,7 +4,7 @@ import { AiError, callStructured, estimateCost, reserve, settle, type JsonSchema
 
 export type AiService = {
   available: () => boolean;
-  structured: (o: { purpose: string; model: string; system: string; user: string; schema: JsonSchema; maxOutput: number; estInput: number }) => Promise<unknown>;
+  structured: (o: { purpose: string; model: string; system: string; user: string; schema: JsonSchema; maxOutput: number; estInput: number; timeoutMs?: number }) => Promise<unknown>;
 };
 
 /**
@@ -20,7 +20,7 @@ export function createAiService(cfg: Config, db: DB, fetchImpl?: typeof fetch): 
       const id = reserve(db, budget, o.purpose, o.model, 'text', estimateCost(o.model, o.estInput, o.maxOutput));
       try {
         const r = await callStructured(
-          { apiKey: cfg.OPENAI_API_KEY, baseUrl: cfg.OPENAI_BASE_URL, timeoutMs: cfg.AI_TIMEOUT_MS, fetchImpl },
+          { apiKey: cfg.OPENAI_API_KEY, baseUrl: cfg.OPENAI_BASE_URL, timeoutMs: o.timeoutMs ?? cfg.AI_TIMEOUT_MS, fetchImpl },
           o.model,
           o.system,
           o.user,

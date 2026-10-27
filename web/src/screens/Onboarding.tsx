@@ -26,7 +26,7 @@ export function Onboarding({ onClose, onReview }: { onClose: () => void; onRevie
     setBusy(true);
     setErr(null);
     try {
-      const r = await api<OnbView>(path, { method: 'POST', body: JSON.stringify(body) });
+      const r = await api<OnbView>(path, { method: 'POST', body: JSON.stringify(body) }, 60_000);
       setV(r);
       haptic('light');
       return true;

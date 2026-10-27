@@ -162,5 +162,82 @@ export const migrations: { version: number; name: string; sql: string }[] = [
       );
       CREATE INDEX exercises_status ON exercises (status);
     `
+  },
+  {
+    version: 3,
+    name: 'plans_sessions_results',
+    sql: `
+      -- Версии недельного плана. Действующая версия на неделю — одна (status='active').
+      CREATE TABLE plans (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        week_start TEXT NOT NULL,
+        version INTEGER NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('active','superseded')),
+        source TEXT NOT NULL CHECK (source IN ('ai','rules')),
+        model TEXT,
+        explanation TEXT NOT NULL,
+        basis TEXT NOT NULL DEFAULT '{}',
+        timezone TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE (user_id, week_start, version)
+      );
+      CREATE UNIQUE INDEX plans_one_active ON plans (user_id, week_start) WHERE status = 'active';
+
+      -- Занятия. content — текущее содержание; started_content — версия, по которой занятие начато.
+      CREATE TABLE sessions (
+        id INTEGER PRIMARY KEY,
+        plan_id INTEGER NOT NULL REFERENCES plans(id),
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        local_date TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        start_at TEXT NOT NULL,
+        timezone TEXT NOT NULL,
+        title TEXT NOT NULL,
+        purpose TEXT NOT NULL,
+        duration_min INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        content_version INTEGER NOT NULL DEFAULT 1,
+        started_content TEXT,
+        status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned','started','done','partial','skipped','moved','cancelled')),
+        started_at TEXT,
+        finished_at TEXT,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX sessions_user_date ON sessions (user_id, local_date);
+      CREATE INDEX sessions_plan ON sessions (plan_id);
+
+      CREATE TABLE checkins (
+        id INTEGER PRIMARY KEY,
+        session_id INTEGER NOT NULL REFERENCES sessions(id),
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        answers TEXT NOT NULL,
+        options TEXT NOT NULL,
+        chosen TEXT,
+        created_at TEXT NOT NULL
+      );
+
+      -- Фактические результаты. План хранится отдельно в sessions.content; здесь только факт.
+      CREATE TABLE set_results (
+        id INTEGER PRIMARY KEY,
+        session_id INTEGER NOT NULL REFERENCES sessions(id),
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        item_index INTEGER NOT NULL,
+        exercise_id TEXT NOT NULL,
+        set_index INTEGER NOT NULL,
+        reps INTEGER,
+        seconds INTEGER,
+        meters INTEGER,
+        weight_kg REAL,
+        rpe INTEGER,
+        pain INTEGER NOT NULL DEFAULT 0,
+        note TEXT,
+        performed_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        corrected INTEGER NOT NULL DEFAULT 0,
+        UNIQUE (session_id, item_index, set_index)
+      );
+      CREATE INDEX set_results_user ON set_results (user_id, exercise_id, performed_at);
+    `
   }
 ];
