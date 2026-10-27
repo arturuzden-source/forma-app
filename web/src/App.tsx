@@ -1,149 +1,134 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, readCache, writeCache } from './api';
-import { tg } from './telegram';
+import { bindBackButton, tg } from './telegram';
+import type { Home as HomeT } from './types';
+import { Banner, Spinner, TabBar, type Tab } from './components/ui';
+import { Home } from './screens/Home';
+import { Onboarding } from './screens/Onboarding';
+import { Profile } from './screens/Profile';
+import { Catalog, Exercise } from './screens/Catalog';
+import { Settings, Soon } from './screens/Settings';
 
-type Me = { user: { telegramId: number; firstName: string | null; since: string }; server: { version: string; schema: number } };
-type Note = { id: number; text: string; created_at: string };
+type Route = { name: 'tab' } | { name: 'onboarding' } | { name: 'profile' } | { name: 'catalog' } | { name: 'exercise'; id: string } | { name: 'settings' };
 
-type State =
-  | { kind: 'loading' }
-  | { kind: 'ready'; me: Me; notes: Note[] }
-  | { kind: 'offline'; cached: { me: Me; notes: Note[]; savedAt: string } | null }
-  | { kind: 'auth'; status?: number }
-  | { kind: 'error' };
+type Load = { kind: 'loading' } | { kind: 'ready'; home: HomeT } | { kind: 'offline'; cached: HomeT | null; savedAt: string | null } | { kind: 'auth'; status?: number } | { kind: 'error' };
 
 export function App() {
-  const [state, setState] = useState<State>({ kind: 'loading' });
-  const [text, setText] = useState('');
-  const [saving, setSaving] = useState<{ opId: string } | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [load, setLoad] = useState<Load>({ kind: 'loading' });
+  const [tab, setTab] = useState<Tab>('home');
+  const [stack, setStack] = useState<Route[]>([{ name: 'tab' }]);
+  const route = stack[stack.length - 1]!;
   const tgUserId = tg()?.initDataUnsafe?.user?.id;
 
-  const load = useCallback(async () => {
+  const push = (r: Route) => setStack((s) => [...s, r]);
+  const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
+
+  const refresh = useCallback(async () => {
     try {
-      const me = await api<Me>('/api/me');
-      const { notes } = await api<{ notes: Note[] }>('/api/pilot/notes');
-      writeCache(me.user.telegramId, { me, notes });
-      setState({ kind: 'ready', me, notes });
+      const home = await api<HomeT>('/api/home');
+      if (tgUserId) writeCache(tgUserId, { home });
+      setLoad({ kind: 'ready', home });
+      return home;
     } catch (e) {
       if (e instanceof ApiError && e.kind === 'offline') {
         const c = readCache(tgUserId);
-        setState({ kind: 'offline', cached: c ? { me: c.data.me as Me, notes: c.data.notes as Note[], savedAt: c.savedAt } : null });
-      } else if (e instanceof ApiError && e.kind === 'auth') setState({ kind: 'auth', status: e.status });
-      else setState({ kind: 'error' });
+        setLoad({ kind: 'offline', cached: (c?.data.home as HomeT) ?? null, savedAt: c?.savedAt ?? null });
+      } else if (e instanceof ApiError && e.kind === 'auth') setLoad({ kind: 'auth', status: e.status });
+      else setLoad({ kind: 'error' });
+      return null;
     }
   }, [tgUserId]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void refresh().then((h) => {
+      // Первый вход: сразу открыть беседу-знакомство.
+      if (h && h.profile.status === 'draft' && !h.onboarding.finished) setStack([{ name: 'tab' }, { name: 'onboarding' }]);
+    });
+  }, [refresh]);
 
-  // В режиме «нет связи» повторяем попытку каждые 30 секунд.
   useEffect(() => {
-    if (state.kind !== 'offline') return;
-    const t = setInterval(() => void load(), 30_000);
+    if (load.kind !== 'offline') return;
+    const t = setInterval(() => void refresh(), 30_000);
     return () => clearInterval(t);
-  }, [state.kind, load]);
+  }, [load.kind, refresh]);
 
-  async function save() {
-    if (!text.trim()) return;
-    // Один и тот же opId при повторе: сервер не создаст вторую запись.
-    const opId = saving?.opId ?? crypto.randomUUID();
-    setSaving({ opId });
-    setSaveError(null);
-    try {
-      await api('/api/pilot/notes', { method: 'POST', body: JSON.stringify({ opId, text }) });
-      setText('');
-      setSaving(null);
-      await load();
-    } catch (e) {
-      setSaveError(e instanceof ApiError && e.kind === 'offline' ? 'Нет связи — запись не сохранена. Повторите.' : 'Не удалось сохранить.');
-      setSaving({ opId });
-    }
-  }
+  useEffect(() => bindBackButton(stack.length > 1, pop), [stack.length, pop]);
 
-  if (state.kind === 'loading') return <div className="screen"><p className="muted">Подключаюсь к серверу…</p></div>;
+  const back = () => {
+    pop();
+    void refresh();
+  };
 
-  if (state.kind === 'auth')
+  if (load.kind === 'loading') return <div className="screen-center"><Spinner label="Подключаюсь к серверу" /></div>;
+  if (load.kind === 'auth')
     return (
-      <div className="screen">
-        <p className="title">Форма</p>
-        <div className="card warn">
-          <p className="head">Нет доступа</p>
-          <p className="muted">
-            {state.status === 403 ? 'Это закрытый пилот: доступ есть только у владельца.' : 'Откройте приложение из бота в Telegram — так сервер сможет проверить, что это вы.'}
-          </p>
-        </div>
+      <div className="screen-full pad stack">
+        <p className="h1">Форма</p>
+        <Banner kind="warn" title="Нет доступа">
+          <p className="muted">{load.status === 403 ? 'Это закрытый пилот: доступ есть только у владельца.' : 'Откройте приложение из бота в Telegram — так сервер сможет проверить, что это вы.'}</p>
+        </Banner>
       </div>
     );
-
-  if (state.kind === 'error')
+  if (load.kind === 'error')
     return (
-      <div className="screen">
-        <p className="title">Форма</p>
-        <div className="card warn"><p className="head">Ошибка сервера</p><p className="muted">Попробуйте ещё раз через минуту.</p></div>
-        <button className="btn" onClick={() => void load()}>Повторить</button>
+      <div className="screen-full pad stack">
+        <p className="h1">Форма</p>
+        <Banner kind="warn" title="Ошибка сервера"><p className="muted">Попробуйте ещё раз через минуту.</p></Banner>
+        <button className="btn" onClick={() => void refresh()}>Повторить</button>
       </div>
     );
-
-  if (state.kind === 'offline')
+  if (load.kind === 'offline')
     return (
-      <div className="screen">
-        <p className="title">Форма</p>
-        <div className="card warn">
-          <p className="head">Нет связи с сервером</p>
+      <div className="screen-full pad stack">
+        <p className="h1">Форма</p>
+        <Banner kind="warn" title="Нет связи с сервером">
           <p className="muted">Записи и изменения сейчас не сохраняются. Проверяю каждые 30 секунд.</p>
-        </div>
-        {state.cached ? (
-          <>
-            <p className="muted faint">Данные загружены {new Date(state.cached.savedAt).toLocaleString('ru-RU')} и могут быть неактуальны.</p>
-            <Notes notes={state.cached.notes} />
-          </>
+        </Banner>
+        {load.cached ? (
+          <section className="card">
+            <p className="label">Данные на {load.savedAt ? new Date(load.savedAt).toLocaleString('ru-RU') : '—'}</p>
+            <p className="muted">{load.cached.profile.name ? `${load.cached.profile.name}, ` : ''}цели: {load.cached.goals.map((g) => g.title).join(', ') || 'нет'}</p>
+          </section>
         ) : (
           <p className="muted">Для первой загрузки нужен работающий сервер.</p>
         )}
-        <button className="btn" disabled>Записать — нужна связь</button>
-        <button className="btn2" onClick={() => void load()}>Повторить подключение</button>
+        <button className="btn2" onClick={() => void refresh()}>Повторить подключение</button>
       </div>
     );
 
-  const { me, notes } = state;
-  return (
-    <div className="screen">
-      <div>
-        <p className="muted">Этап 0 · проверка сервера</p>
-        <p className="title">Привет, {me.user.firstName ?? 'владелец'}</p>
-      </div>
-      <section className="card hl">
-        <p className="label ok">Подключено</p>
-        <div className="row"><span>Сервер</span><span>{me.server.version}</span></div>
-        <div className="row"><span>Схема базы</span><span>v{me.server.schema}</span></div>
-        <div className="row"><span>Аккаунт</span><span>проверен Telegram</span></div>
-      </section>
-      <section className="card">
-        <p className="label">Проверка сохранности данных</p>
-        <p className="muted">Добавьте запись, затем обновите сервис на Railway. Запись должна остаться.</p>
-        <label className="muted" htmlFor="note">Текст записи</label>
-        <input id="note" className="input" value={text} maxLength={500} onChange={(e) => setText(e.target.value)} placeholder="Например: до обновления" />
-        {saveError && <p className="muted bad">{saveError}</p>}
-        <button className="btn" disabled={!text.trim()} onClick={() => void save()}>{saving && !saveError ? 'Сохраняю…' : 'Сохранить запись'}</button>
-      </section>
-      <Notes notes={notes} />
-    </div>
-  );
-}
+  const home = load.home;
 
-function Notes({ notes }: { notes: Note[] }) {
+  switch (route.name) {
+    case 'onboarding':
+      return <Onboarding onClose={back} onReview={() => setStack([{ name: 'tab' }, { name: 'profile' }])} />;
+    case 'profile':
+      return <Profile onBack={back} onConfirmed={() => { setStack([{ name: 'tab' }]); setTab('home'); void refresh(); }} onOnboarding={() => push({ name: 'onboarding' })} />;
+    case 'catalog':
+      return <Catalog onBack={back} onOpen={(id) => push({ name: 'exercise', id })} />;
+    case 'exercise':
+      return <Exercise id={route.id} onBack={back} onOpen={(id) => push({ name: 'exercise', id })} />;
+    case 'settings':
+      return <Settings h={home} onBack={back} go={(r) => push({ name: r })} reload={() => void refresh()} />;
+  }
+
+  const go = (r: 'onboarding' | 'profile' | 'catalog' | 'settings') => push({ name: r });
   return (
-    <section className="card">
-      <p className="label">Записи · {notes.length}</p>
-      {notes.length === 0 && <p className="muted">Пока нет записей.</p>}
-      {notes.map((n) => (
-        <div className="note" key={n.id}>
-          <span>{n.text}</span>
-          <span className="faint">{new Date(n.created_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })}</span>
-        </div>
-      ))}
-    </section>
+    <div className="screen-full">
+      {tab === 'home' && <Home h={home} go={go} />}
+      {tab === 'plan' && (
+        <main className="scroll pad stack">
+          <p className="h1">План</p>
+          <section className="card hl">
+            <p className="label accent">Следующее обновление</p>
+            <p className="muted-hl">Недельный план по вашему расписанию, чек-ин и запись тренировок появятся на этапе 2. Сейчас можно изучить технику упражнений.</p>
+            <button className="btn" onClick={() => go('catalog')}>Каталог упражнений</button>
+          </section>
+        </main>
+      )}
+      {tab === 'food' && <Soon title="Питание" text="Меню, замены блюд и дневник по тексту и фото — на этапе 5." />}
+      {tab === 'progress' && <Soon title="Прогресс" text="Графики результатов, регулярность и личные фотоотчёты — на этапе 6. Данные начнут копиться с первых тренировок." />}
+      {tab === 'assistant' && <Soon title="Помощник" text="Чат для изменений плана: «сегодня только 20 минут», «перенеси на субботу» — на этапе 4." />}
+      <TabBar active={tab} onSelect={setTab} />
+    </div>
   );
 }

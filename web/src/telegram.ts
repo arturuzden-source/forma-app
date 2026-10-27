@@ -7,6 +7,9 @@ type TgWebApp = {
   setBackgroundColor?: (c: string) => void;
   version?: string;
   platform?: string;
+  BackButton?: { show: () => void; hide: () => void; onClick: (cb: () => void) => void; offClick: (cb: () => void) => void };
+  HapticFeedback?: { impactOccurred: (s: 'light' | 'medium') => void; notificationOccurred: (s: 'success' | 'error' | 'warning') => void };
+  isVersionAtLeast?: (v: string) => boolean;
 };
 
 export function tg(): TgWebApp | null {
@@ -23,5 +26,33 @@ export function initTelegram() {
     w.setBackgroundColor?.('#0d0e10');
   } catch {
     /* старые клиенты */
+  }
+}
+
+/** Нативная кнопка «Назад» Telegram. Возвращает функцию отписки. */
+export function bindBackButton(visible: boolean, onBack: () => void) {
+  const b = tg()?.BackButton;
+  if (!b) return () => {};
+  if (visible) b.show();
+  else b.hide();
+  b.onClick(onBack);
+  return () => b.offClick(onBack);
+}
+
+export function haptic(kind: 'light' | 'success' | 'error') {
+  try {
+    const h = tg()?.HapticFeedback;
+    if (kind === 'light') h?.impactOccurred('light');
+    else h?.notificationOccurred(kind);
+  } catch {
+    /* нет поддержки */
+  }
+}
+
+export function deviceTz(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return undefined;
   }
 }

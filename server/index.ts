@@ -8,6 +8,8 @@ import { buildAdmin } from './http/admin.js';
 import { Scheduler, enqueue } from './jobs/scheduler.js';
 import { createBackup, pruneBackups, restoreFromBackup } from './backup/backup.js';
 import { createBot, type BotHandle } from './bot/bot.js';
+import { seedCatalog } from './catalog/store.js';
+import { createAiService } from './ai/service.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const version = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? process.env.npm_package_version ?? 'dev';
@@ -26,10 +28,11 @@ async function main() {
   }
 
   const db = openDb(cfg.DATA_DIR);
+  const seeded = seedCatalog(db);
   const webDir = path.resolve(here, '../web');
-  const app = buildApp({ cfg, db, version, webDir, startedAt: new Date() });
+  const app = buildApp({ cfg, db, version, webDir, startedAt: new Date(), ai: createAiService(cfg, db) });
   const log = app.log;
-  log.info({ config: describeConfig(cfg), version }, 'запуск');
+  log.info({ config: describeConfig(cfg), version, catalogSeeded: seeded }, 'запуск');
 
   let bot: BotHandle | null = null;
   if (cfg.botEnabled) bot = createBot(cfg, db, log, version);

@@ -7,8 +7,11 @@ import type { Config } from '../config.js';
 import type { DB } from '../db/index.js';
 import { schemaVersion, withTx } from '../db/index.js';
 import { verifyInitData } from '../auth/telegram.js';
+import type { AiService } from '../ai/service.js';
+import { createAiService } from '../ai/service.js';
+import { registerStage1 } from './stage1.js';
 
-type Ctx = { cfg: Config; db: DB; version: string; webDir: string | null; startedAt: Date };
+export type Ctx = { cfg: Config; db: DB; version: string; webDir: string | null; startedAt: Date; ai?: AiService };
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -70,6 +73,8 @@ export function buildApp(ctx: Ctx, opts: { logger?: boolean } = {}): FastifyInst
       });
       return { saved: true, ...result };
     });
+
+    registerStage1(api, { ...ctx, ai: ctx.ai ?? createAiService(ctx.cfg, ctx.db) });
   });
 
   if (ctx.webDir && fs.existsSync(ctx.webDir)) {
