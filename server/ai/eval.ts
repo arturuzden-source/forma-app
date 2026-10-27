@@ -59,7 +59,7 @@ export const CASES: Case[] = [
         }
       }
     },
-    maxOutput: 400,
+    maxOutput: 1500,
     check: (j) => [
       { ok: j.name === 'Артур' && j.age === 31 && j.height_cm === 180, note: 'имя, возраст, рост' },
       { ok: typeof j.weight_kg === 'number' && Math.abs(j.weight_kg - 78) < 0.6, note: 'вес 78' },
@@ -109,7 +109,7 @@ export const CASES: Case[] = [
         }
       }
     },
-    maxOutput: 900,
+    maxOutput: 4000,
     check: (j) => {
       const ids = new Set(CATALOG.map((c) => c.id));
       const items: any[] = j.items ?? [];
@@ -152,7 +152,7 @@ export const CASES: Case[] = [
         }
       }
     },
-    maxOutput: 250,
+    maxOutput: 1000,
     check: (j) => [
       { ok: j.action === 'clarify', note: 'запросил уточнение' },
       { ok: typeof j.question === 'string' && isRussian(j.question), note: 'вопрос на русском' }
@@ -170,7 +170,7 @@ export const CASES: Case[] = [
       name: 'explanation',
       schema: { type: 'object', additionalProperties: false, required: ['text'], properties: { text: { type: 'string' } } }
     },
-    maxOutput: 250,
+    maxOutput: 1000,
     check: (j) => [
       { ok: isRussian(j.text), note: 'на русском' },
       { ok: typeof j.text === 'string' && j.text.length <= 320, note: 'коротко (≤ 320 знаков)' },

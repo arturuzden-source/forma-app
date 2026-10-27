@@ -150,6 +150,11 @@ describe('бюджет ИИ', () => {
       expect((e as Error).message).not.toContain('sk-abc123');
     }
   });
+  it('обрезанный ответ распознаётся как truncated, а не как плохой JSON', async () => {
+    const fake = (async () =>
+      new Response(JSON.stringify({ status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' }, output_text: '{"text":"Объ', usage: { input_tokens: 10, output_tokens: 900 } }), { status: 200 })) as typeof fetch;
+    await expect(callStructured({ apiKey: 'k', baseUrl: 'http://x', timeoutMs: 1000, fetchImpl: fake }, 'gpt-6-luna', 's', 'u', CASES[3]!.schema)).rejects.toMatchObject({ code: 'truncated' });
+  });
   it('структурированный ответ разбирается и стоимость считается по токенам', async () => {
     const fake = (async () =>
       new Response(JSON.stringify({ output_text: '{"text":"Объём не повышаем: сон 6,8 ч."}', usage: { input_tokens: 1000, output_tokens: 100 } }), { status: 200 })) as typeof fetch;

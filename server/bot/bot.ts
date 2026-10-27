@@ -63,7 +63,7 @@ export function createBot(cfg: Config, db: DB, log: Logger, version: string): Bo
         `Верхняя оценка: ${fmtUsd(est.totalMaxUsd)}. Жёсткий предел: ${fmtUsd(cfg.AI_EVAL_BUDGET_USD)}.`,
         'Деньги списываются с баланса OpenAI. Запустить?'
       ].join('\n'),
-      { reply_markup: new InlineKeyboard().text('Запустить проверку', 'aieval:run').text('Отмена', 'aieval:cancel') }
+      { reply_markup: new InlineKeyboard().text('Запустить', 'aieval:run').text('Отмена', 'aieval:cancel') }
     );
   });
 

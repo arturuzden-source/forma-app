@@ -141,6 +141,7 @@ export async function callStructured(
     output?: { type: string; content?: { type: string; text?: string }[] }[];
     usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } };
     status?: string;
+    incomplete_details?: { reason?: string };
   };
   const text =
     body.output_text ??
@@ -154,6 +155,12 @@ export async function callStructured(
     cached: body.usage?.input_tokens_details?.cached_tokens ?? 0,
     output: body.usage?.output_tokens ?? 0
   };
+  if (body.status === 'incomplete') {
+    // Чаще всего ответ обрезан пределом max_output_tokens (у рассуждающих моделей
+    // в него входят и токены рассуждения) — это не «плохой JSON», а нехватка места.
+    const reason = body.incomplete_details?.reason ?? 'unknown';
+    throw Object.assign(new AiError('truncated', `Ответ не завершён: ${reason}`), { usage, latencyMs });
+  }
   let json: unknown = null;
   try {
     json = JSON.parse(text);
